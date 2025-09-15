@@ -1,5 +1,7 @@
 Telco Customer Churn – Exploratory Data Analysis
+
 📌 Descripción del Proyecto.
+
 Este proyecto se desarrolla en el marco de un análisis de negocio para una empresa de telecomunicaciones, con el objetivo de comprender los factores que impactan en la rotación de clientes (churn).
 El análisis se enfoca en identificar patrones de comportamiento y variables críticas que permitan anticipar bajas de clientes, mejorar la estrategia de retención y optimizar la toma de decisiones de negocio mediante técnicas de Ciencia de Datos.
 🎯 Objetivos del Análisis
