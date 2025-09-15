@@ -5,7 +5,7 @@ El análisis se enfoca en identificar patrones de comportamiento y variables cr�
 🎯 Objetivos del Análisis
 Analizar en detalle la base de datos de clientes.
 Detectar los principales factores asociados al churn.
-Generar visualizaciones claras y accionables para stakeholders no técnicos.
+Generar visualizaciones claras y accionables para stakeholders no técnicos.https://github.com/KLOPEZA1230/Aprendizaje_automatico_en_la_nube/blob/main/README.md
 Preparar la información para el diseño de modelos predictivos y su integración en flujos de MLOps.
 🗂️ Entregables
 📑 Notebook EDA (EDA_trabajo_MLOPS.ipynb) con todo el análisis exploratorio.
