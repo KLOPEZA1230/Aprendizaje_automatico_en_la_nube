@@ -1,5 +1,3 @@
-<<<<<<< HEAD
-
 Realizado por: KATERINE LOPEZ Y MARCELO DAVID
 
 # Aprendizaje_automatico_en_la_nube
