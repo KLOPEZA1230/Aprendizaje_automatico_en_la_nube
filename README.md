@@ -1,6 +1,6 @@
 Realizado por: KATERINE LOPEZ Y MARCELO DAVID
 
-# Aprendizaje_automatico_en_la_nube
+# Aprendizaje_automatico_en_la_nube 
 Taller 1
 📊 Telco Customer Churn – Exploratory Data Analysis
 📌 Descripción del Proyecto
