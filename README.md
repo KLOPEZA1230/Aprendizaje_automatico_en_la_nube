@@ -88,5 +88,30 @@ Entrenar y validar un modelo de clasificación supervisada.
 Desplegar el modelo en un flujo de MLOps para predicción continua.
 Integrar alertas para equipos de marketing y atención al cliente.
 
+
 👉 Este one-pager está pensado para directivos y áreas de negocio, sin entrar en detalles técnicos, pero mostrando valor y accionabilidad.
 >>>>>>> 59ce98b33cdbebf974559eba6974fa9e34b5e573
+>>>>>>
+>>>>>>
+>>>>>><img width="921" height="625" alt="image" src="https://github.com/user-attachments/assets/8d0e5384-d878-4fbe-a25e-a44e4459b3c7" />
+
+<img width="921" height="575" alt="image" src="https://github.com/user-attachments/assets/3b5fe49b-1376-40fe-8bdb-907b1aa1f917" />
+
+<img width="921" height="592" alt="image" src="https://github.com/user-attachments/assets/ed5e47d6-ac5e-4aea-abb1-2b333aee5d97" />
+
+<img width="921" height="530" alt="image" src="https://github.com/user-attachments/assets/8946a132-3df0-4339-9d3b-1ff2948bc175" />
+
+<img width="921" height="520" alt="image" src="https://github.com/user-attachments/assets/3c707832-9427-4b5e-96bc-b66f5fa3799e" />
+
+<img width="921" height="528" alt="image" src="https://github.com/user-attachments/assets/13a2805d-5a48-4f1c-9e75-d5cc2434eee2" />
+
+<img width="921" height="559" alt="image" src="https://github.com/user-attachments/assets/f7b07ab2-7b15-40b0-ad8c-8d4daca57ecb" />
+
+
+
+
+
+
+
+
+
