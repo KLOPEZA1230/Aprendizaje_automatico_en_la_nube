@@ -93,7 +93,7 @@ Integrar alertas para equipos de marketing y atención al cliente.
 >>>>>>> 59ce98b33cdbebf974559eba6974fa9e34b5e573
 >>>>>>
 >>>>>>
->>>>>><img width="921" height="625" alt="image" src="https://github.com/user-attachments/assets/8d0e5384-d878-4fbe-a25e-a44e4459b3c7" />
+<img width="921" height="625" alt="image" src="https://github.com/user-attachments/assets/8d0e5384-d878-4fbe-a25e-a44e4459b3c7" />
 
 <img width="921" height="575" alt="image" src="https://github.com/user-attachments/assets/3b5fe49b-1376-40fe-8bdb-907b1aa1f917" />
 
