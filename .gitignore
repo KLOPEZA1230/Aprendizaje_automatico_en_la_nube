@@ -208,3 +208,9 @@ __marimo__/
 # Ignora artefactos de MLflow en git
 mlruns/
 mlruns.db
+.venv/
+.venv311/
+__pycache__/
+*.pyc
+logs/mlruns/
+.ipynb_checkpoints/
