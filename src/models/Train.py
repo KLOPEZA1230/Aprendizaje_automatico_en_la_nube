@@ -50,7 +50,8 @@ def main():
     # ---------- MLflow ----------
     mlflow.set_tracking_uri("file:./logs/mlruns")  # misma carpeta que la UI
     print("Tracking URI:", mlflow.get_tracking_uri())
-    mlflow.set_experiment("telco_churn")
+    mlflow.set_experiment("telco_churn_prefect")
+
 
     with mlflow.start_run(run_name="rf_baseline"):
         params = {
