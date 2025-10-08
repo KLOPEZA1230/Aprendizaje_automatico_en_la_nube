@@ -1,118 +1,143 @@
-Realizado por: KATERINE LOPEZ Y MARCELO DAVID
+🧠 Proyecto Final MLOps – Universidad de Medellín
+Análisis de Churn en Clientes de Telecomunicaciones
+📌 Descripción general
 
-# Aprendizaje_automatico_en_la_nube 
-Taller 1
-📊 Telco Customer Churn – Exploratory Data Analysis
-📌 Descripción del Proyecto
-=======
-Telco Customer Churn – Exploratory Data Analysis
+Este proyecto se desarrolla en el marco de un análisis de negocio para una empresa de telecomunicaciones, con el objetivo de comprender los factores que impactan en la rotación de clientes (churn) y construir un pipeline completo de Machine Learning end-to-end que integre prácticas de MLOps.
 
-📌 Descripción del Proyecto.
+🎯 Objetivos
 
->>>>>>> 59ce98b33cdbebf974559eba6974fa9e34b5e573
-Este proyecto se desarrolla en el marco de un análisis de negocio para una empresa de telecomunicaciones, con el objetivo de comprender los factores que impactan en la rotación de clientes (churn).
-El análisis se enfoca en identificar patrones de comportamiento y variables críticas que permitan anticipar bajas de clientes, mejorar la estrategia de retención y optimizar la toma de decisiones de negocio mediante técnicas de Ciencia de Datos.
+Analizar en detalle la base de datos de clientes y detectar los principales factores asociados al churn.
 
-🎯 Objetivos del Análisis
-Analizar en detalle la base de datos de clientes.
-Detectar los principales factores asociados al churn.
-<<<<<<< HEAD
-Generar visualizaciones claras y accionables para stakeholders no técnicos.
-Preparar la información para el diseño de modelos predictivos y su integración en flujos de MLOps.
-=======
-Generar visualizaciones claras y accionables para stakeholders no técnicos.https://github.com/KLOPEZA1230/Aprendizaje_automatico_en_la_nube/blob/main/README.md
-Preparar la información para el diseño de modelos predictivos y su integración en flujos de MLOps.
+Implementar un flujo MLOps completo:
 
->>>>>>> 59ce98b33cdbebf974559eba6974fa9e34b5e573
-🗂️ Entregables
-📑 Notebook EDA (EDA_trabajo_MLOPS.ipynb) con todo el análisis exploratorio.
-📊 Reportes visuales con métricas clave sobre el comportamiento de los clientes.
-📝 Hallazgos de negocio con foco en la toma de decisiones.
-🛠️ Tecnologías Utilizadas
-<<<<<<< HEAD
-=======
+Ingesta y preprocesamiento de datos.
 
->>>>>>> 59ce98b33cdbebf974559eba6974fa9e34b5e573
-Lenguaje: Python 3.x
-Librerías de análisis y visualización: Pandas, NumPy, Matplotlib, Seaborn
-Entorno: Jupyter Notebook
+Entrenamiento y registro de experimentos con MLflow.
 
-📊 Principales Análisis Realizados
-Perfilado de clientes: demografía, servicios contratados, métodos de pago y facturación.
-Churn Rate por segmentos: tipo de contrato, antigüedad, servicios de internet, etc.
-Análisis comparativo entre clientes activos y clientes en churn.
-Correlación entre variables clave y tasa de rotación.
-Visualizaciones ejecutivas: dashboards y gráficos explicativos para stakeholders.
+Orquestación de tareas con Prefect.
 
-🔑 Hallazgos Clave para el Negocio
-Los clientes con contrato mensual muestran una mayor tendencia al churn.
-El método de pago electrónico se asocia con un churn más elevado.
-Los clientes con baja antigüedad en la empresa presentan una probabilidad significativamente mayor de abandonar el servicio.
-Determinados servicios de internet generan mayor insatisfacción y abandono.
+Despliegue del modelo vía API REST (FastAPI).
 
-🚀 Próximos Pasos
-Desarrollo de un modelo de predicción de churn para clasificación supervisada.
-Implementación de un pipeline de MLOps para entrenamiento, despliegue y monitoreo en producción.
-Propuesta de estrategias de retención personalizadas basadas en la segmentación de clientes.
+Monitoreo del rendimiento del modelo.
 
-📚 Autor
-👤 Katerine López Arango - Marcelo David
-Especialistas en Ciencia de Datos e Inteligencia Artificial
-<<<<<<< HEAD
+Mejores prácticas: versionado, reproducibilidad y CI/CD.
 
-=======
-_____________________________________________________________________________________________________________________
-Perfecto 🙌. Para un resumen ejecutivo tipo one-pager, el foco es claro, conciso y accionable. Se presenta como un documento que un gerente puede leer en 5 minutos y entender el valor. Aquí te dejo un modelo:
-📊 Resumen Ejecutivo – Análisis de Churn en Clientes de Telecomunicaciones
-🎯 Objetivo
-Analizar la base de clientes de la empresa para identificar los factores que más influyen en la rotación de clientes (churn) y proponer lineamientos estratégicos que reduzcan la tasa de bajas.
+🧩 Dataset
 
-🔑 Hallazgos Clave
-📌 Contratos mensuales → Los clientes con este tipo de contrato presentan una tasa de churn significativamente más alta que aquellos con contratos anuales o de mayor permanencia.
-📌 Método de pago electrónico → Se observa una mayor probabilidad de churn en clientes que usan facturación electrónica y pagos automáticos.
-📌 Antigüedad baja → Los clientes con menor tiempo en la compañía son los que más tienden a abandonar el servicio.
-📌 Servicios de internet → Algunos planes de internet presentan niveles de churn más elevados, lo que sugiere posibles problemas de satisfacción o de competencia directa.
-📊 Impacto Potencial
-Reducción de 5-10% en la tasa de churn con estrategias de retención focalizadas.
-Incremento en el Customer Lifetime Value (CLV) mediante la fidelización de clientes de alto riesgo.
-Optimización de campañas de retención, priorizando a clientes de segmentos vulnerables.
+Nombre: Telco Customer Churn
 
-🚀 Recomendaciones Estratégicas
-Incentivar la migración a contratos de largo plazo (ofertas y descuentos).
-Revisar la experiencia de clientes en pagos electrónicos para reducir fricciones.
-Diseñar programas de bienvenida y fidelización temprana para clientes nuevos.
-Monitorear la calidad del servicio en planes de internet de mayor churn.
-Implementar un modelo predictivo de churn para identificar en tiempo real a clientes en riesgo.
+Fuente: Telco Customer Churn – Kaggle
 
-📌 Próximos Pasos
-Entrenar y validar un modelo de clasificación supervisada.
-Desplegar el modelo en un flujo de MLOps para predicción continua.
-Integrar alertas para equipos de marketing y atención al cliente.
+Variable objetivo: Churn (1 = cliente se dio de baja, 0 = cliente activo).
+
+Procesamiento: variables codificadas y transformadas → data/processed/features_telco.csv.
+
+⚙️ Tecnologías
+Componente	Herramienta
+Lenguaje	Python 3.11
+Frameworks ML	Scikit-learn, Pandas, NumPy
+Tracking	MLflow
+Orquestación	Prefect
+API	FastAPI + Uvicorn
+Contenedores	Docker
+Testing y calidad	Pytest, Flake8, Pre-commit
+📁 Estructura del Repositorio
+Aprendizaje_automatico_en_la_nube/
+├── README.md
+├── requirements.txt
+├── .gitignore
+├── notebooks/
+│   ├── 01_eda.ipynb
+│   ├── 02_baseline.ipynb
+│   └── 03_experiments.ipynb
+├── data/
+│   ├── raw/
+│   └── processed/
+├── src/
+│   ├── api/app.py
+│   ├── models/train_flow.py
+│   ├── monitoring/monitor.py
+│   └── features/Feature_Engineer.py
+├── logs/
+│   └── mlruns/
+├── tests/
+│   └── test_train.py
+└── Dockerfile
+
+🧰 Instalación y Configuración
+# 1️⃣ Crear entorno virtual
+python -m venv .venv
+.\.venv\Scripts\activate  # Windows
+# source .venv/bin/activate  # Linux/Mac
+
+# 2️⃣ Instalar dependencias
+pip install -r requirements.txt
+
+🚀 Entrenamiento y MLflow Tracking
+python -m src.models.train_flow
 
 
-👉 Este one-pager está pensado para directivos y áreas de negocio, sin entrar en detalles técnicos, pero mostrando valor y accionabilidad.
->>>>>>> 59ce98b33cdbebf974559eba6974fa9e34b5e573
->>>>>>
->>>>>>
-<img width="921" height="625" alt="image" src="https://github.com/user-attachments/assets/8d0e5384-d878-4fbe-a25e-a44e4459b3c7" />
+Entrena un modelo RandomForestClassifier.
 
-<img width="921" height="575" alt="image" src="https://github.com/user-attachments/assets/3b5fe49b-1376-40fe-8bdb-907b1aa1f917" />
+Registra parámetros, métricas y modelo en logs/mlruns/.
 
-<img width="921" height="592" alt="image" src="https://github.com/user-attachments/assets/ed5e47d6-ac5e-4aea-abb1-2b333aee5d97" />
+Crea artifacts/model/MLmodel para su posterior despliegue.
 
-<img width="921" height="530" alt="image" src="https://github.com/user-attachments/assets/8946a132-3df0-4339-9d3b-1ff2948bc175" />
+Visualización de resultados:
 
-<img width="921" height="520" alt="image" src="https://github.com/user-attachments/assets/3c707832-9427-4b5e-96bc-b66f5fa3799e" />
-
-<img width="921" height="528" alt="image" src="https://github.com/user-attachments/assets/13a2805d-5a48-4f1c-9e75-d5cc2434eee2" />
-
-<img width="921" height="559" alt="image" src="https://github.com/user-attachments/assets/f7b07ab2-7b15-40b0-ad8c-8d4daca57ecb" />
+mlflow ui --backend-store-uri logs/mlruns --port 5000
 
 
+Abrir en navegador: http://127.0.0.1:5000
+
+🌐 Despliegue Local – API FastAPI
+uvicorn src.api.app:app --reload
 
 
+Documentación interactiva: http://127.0.0.1:8000/docs
+
+Verificación de estado: http://127.0.0.1:8000/
+
+Ejemplo de request:
+
+{
+  "tenure": 12,
+  "MonthlyCharges": 70.5,
+  "TotalCharges": 845.2
+}
 
 
+Respuesta:
+
+{"prediction": 0}
+
+📊 Monitoreo Simulado
+python -m src.monitoring.monitor
 
 
+Genera un log con métricas (accuracy, positive_rate) en logs/monitoring/metrics.csv.
 
+🧪 Testing y Calidad
+pytest -q
+flake8
+pre-commit run --all-files
+
+🐳 Docker (opcional)
+docker build -t churn-api .
+docker run -p 8000:8000 churn-api
+
+✅ Estado del Proyecto
+Fase	Entregable	Estado
+1	Setup y EDA	✅
+2	MLflow Tracking	✅
+3	Prefect Pipeline	✅
+4	API REST (FastAPI)	✅
+5	Monitoreo	✅
+6	Testing y Documentación	🔵 En revisión final
+7	Docker y CI/CD	🔵 En progreso
+👤 Autores
+
+Katerine López Arango – Ciencia de Datos & MLOps
+Marcelo David – Inteligencia Artificial y Analítica Predictiva
+
+GitHub: @KLOPEZA1230

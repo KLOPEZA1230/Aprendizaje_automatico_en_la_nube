@@ -5,3 +5,4 @@ def test_readme_exists():
 
 def test_requirements_exists():
     assert pathlib.Path("requirements.txt").exists()
+
