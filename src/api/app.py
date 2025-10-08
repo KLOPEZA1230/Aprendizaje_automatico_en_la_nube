@@ -1,231 +1,245 @@
 # src/api/app.py
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
-
-from fastapi import FastAPI, HTTPException
+import os
 from pathlib import Path
+from typing import Any, Dict, List, Optional, Union
+from urllib.parse import urlparse, unquote
+
 import pandas as pd
-import numpy as np
-import mlflow
+from fastapi import FastAPI, Body, HTTPException
 import mlflow.pyfunc as mlpyfunc
 
 
-app = FastAPI(title="Telco Churn API", version="1.1.0")
+app = FastAPI(title="Telco Churn API", version="1.1.1")
 
 
-# ───────────────────────────────────────────────────────────────────────────────
-# 1) DÓNDE ENCONTRAR EL MODELO
-# ───────────────────────────────────────────────────────────────────────────────
-# Si no se encuentra automáticamente, se usa este respaldo.
-# 👉 Cambia SOLO si tu carpeta real es distinta:
-FALLBACK_MODEL_DIR = Path(
-    "logs/mlruns/202835467819020042/models/m-e71d34a67e0d4b14a5975a6e4a7372fe/artifacts"
-)
+# ---------- utilidades ----------
 
-SEARCH_ROOTS = [Path("logs/mlruns"), Path("mlruns")]  # dónde buscar por defecto
-
-
-def _find_latest_model_dir() -> Path:
+def _path_from_maybe_file_uri(p: str) -> Path:
     """
-    Busca el 'model dir' que contiene un MLmodel bajo:
-      logs/mlruns/**/artifacts/model/MLmodel  (y equivalente en mlruns/)
-    Si no aparece, usa FALLBACK_MODEL_DIR.
+    Convierte 'file:///C:/...' a ruta local en Windows/Linux si aplica.
+    Si no es URI (no empieza por file:), lo devuelve tal cual.
     """
+    if isinstance(p, str) and p.lower().startswith("file:"):
+        u = urlparse(p)
+        local = unquote(u.path or "")
+        # En Windows, urlparse deja '/C:/...' -> quitar el primer '/'
+        if os.name == "nt" and local.startswith("/") and len(local) > 2 and local[2] == ":":
+            local = local[1:]
+        return Path(local)
+    return Path(p)
+
+
+def _resolve_model_dir() -> Path:
+    """
+    Devuelve el directorio del modelo a cargar (carpeta que contiene 'MLmodel').
+
+    1) Si existe MODEL_PATH:
+       - Si es archivo MLmodel -> usar su carpeta padre
+       - Si es carpeta con MLmodel -> usarla
+       - Si apunta a .../artifacts -> usar .../artifacts/model
+       - Si apunta a carpeta 'run' que contenga 'artifacts/model/MLmodel' -> usarla
+       - Acepta tanto ruta local como URI file:///
+    2) Si no hay MODEL_PATH, busca el MLmodel más reciente bajo:
+       - logs/mlruns/**/artifacts/model
+       - mlruns/**/artifacts/model
+    """
+    env_path = os.getenv("MODEL_PATH")
+
+    def normalize_candidate_dir(p: Path) -> Optional[Path]:
+        if p.is_file() and p.name == "MLmodel":
+            return p.parent
+        if p.is_dir():
+            # caso exacto .../model
+            if (p / "MLmodel").exists():
+                return p
+            # caso .../artifacts
+            if (p / "model" / "MLmodel").exists():
+                return p / "model"
+            # caso carpeta del run con subcarpeta artifacts/model
+            if (p / "artifacts" / "model" / "MLmodel").exists():
+                return p / "artifacts" / "model"
+        return None
+
+    if env_path:
+        p = _path_from_maybe_file_uri(env_path)
+        cand = normalize_candidate_dir(p)
+        if cand:
+            return cand
+        raise FileNotFoundError(
+            "MODEL_PATH no es válido o no contiene un modelo de MLflow.\n"
+            f"Valor recibido: {env_path}\n"
+            "Debes apuntar a la carpeta que contiene 'MLmodel' (p. ej. .../artifacts/model)\n"
+            "o a '.../MLmodel' directamente, o eliminar MODEL_PATH para autodetección."
+        )
+
+    # --- Búsqueda automática ---
+    roots = [Path("logs/mlruns"), Path("mlruns")]
     candidates: List[Path] = []
-
-    for root in SEARCH_ROOTS:
+    for root in roots:
         if not root.exists():
             continue
-        # buscamos MLmodel exactamente en artifacts/model
-        for mlmodel_file in root.glob("**/artifacts/model/MLmodel"):
-            model_dir = mlmodel_file.parent  # .../artifacts/model
-            candidates.append(model_dir)
+        # .../artifacts/model/MLmodel
+        for mlm in root.rglob("artifacts/model/MLmodel"):
+            candidates.append(mlm.parent)
+        # fallback: .../model/MLmodel por si el layout difiere
+        for mlm in root.rglob("model/MLmodel"):
+            candidates.append(mlm.parent)
 
-    if candidates:
-        # el más reciente por fecha de modificación
-        return max(candidates, key=lambda p: p.stat().st_mtime)
+    if not candidates:
+        raise FileNotFoundError(
+            "No encontré modelos bajo 'mlruns/**/artifacts/model' ni 'logs/mlruns/**/artifacts/model'.\n"
+            "Ejecuta primero el entrenamiento para que MLflow guarde el modelo, "
+            "o define MODEL_PATH apuntando a la carpeta del modelo."
+        )
 
-    # Si no hay nada, probamos respaldo:
-    if FALLBACK_MODEL_DIR.exists():
-        print("⚠️ Usando modelo de respaldo:", FALLBACK_MODEL_DIR)
-        return FALLBACK_MODEL_DIR
-
-    # Nada de nada:
-    raise FileNotFoundError(
-        "No encontré modelos bajo logs/mlruns/**/artifacts/model o mlruns/**/artifacts/model.\n"
-        "Revisa que hayas entrenado y logueado el modelo con MLflow.\n"
-        "También puedes ajustar FALLBACK_MODEL_DIR con tu ruta real."
-    )
+    # Elegir el más reciente por fecha de modificación
+    return max(candidates, key=lambda p: p.stat().st_mtime)
 
 
-# ───────────────────────────────────────────────────────────────────────────────
-# 2) UTILIDADES DE TIPOS
-# ───────────────────────────────────────────────────────────────────────────────
-def _truthy_to_bool(val: Any) -> bool:
+def _read_expected_columns_from_input_example(model_dir: Path) -> Optional[List[str]]:
     """
-    Convierte valores “truthy” a boolean:
-    - 'yes', 'true', '1', 1  -> True
-    - 'no', 'false', '0', 0  -> False
-    - otros -> False por defecto (para robustez)
+    Intenta leer columnas esperadas desde input_example.json (si fue registrado por MLflow).
     """
-    if isinstance(val, bool):
-        return val
-    if val is None:
-        return False
-
-    s = str(val).strip().lower()
-    if s in {"1", "true", "yes", "y", "si", "sí"}:
-        return True
-    if s in {"0", "false", "no", "n"}:
-        return False
-
-    # Si llega algo raro, mejor False que romper:
-    return False
-
-
-def _to_float(val: Any) -> float:
-    """Convierte a float con fallback a 0.0 para robustez."""
-    try:
-        return float(val)
-    except Exception:
-        return 0.0
+    ie = model_dir / "input_example.json"
+    if ie.exists():
+        # MLflow suele guardar el input_example con orient="split"
+        try:
+            df = pd.read_json(ie, orient="split")
+            return list(df.columns)
+        except Exception:
+            pass
+        # fallback: records
+        try:
+            df = pd.read_json(ie)
+            if isinstance(df, pd.DataFrame):
+                return list(df.columns)
+        except Exception:
+            pass
+    return None
 
 
-# ───────────────────────────────────────────────────────────────────────────────
-# 3) ARRANQUE: CARGAR MODELO Y FIRMAS
-# ───────────────────────────────────────────────────────────────────────────────
+def _coerce_booleans_and_numbers(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Convierte strings típicos a booleanos/números cuando es razonable.
+    """
+    truthy = {"true", "yes", "y", "1", "si", "sí"}
+    falsy = {"false", "no", "n", "0"}
+
+    def coerce_cell(x: Any) -> Any:
+        if isinstance(x, str):
+            xs = x.strip().lower()
+            if xs in truthy:
+                return 1
+            if xs in falsy:
+                return 0
+            try:
+                if "." in xs:
+                    return float(xs)
+                return int(xs)
+            except Exception:
+                return x
+        return x
+
+    return df.applymap(coerce_cell)
+
+
+def _align_to_expected_columns(
+    df: pd.DataFrame, expected_cols: Optional[List[str]]
+) -> pd.DataFrame:
+    """
+    Si conocemos las columnas esperadas, rellena faltantes con 0 y reordena.
+    Si no, devuelve df tal cual.
+    """
+    if not expected_cols:
+        return df
+
+    for c in expected_cols:
+        if c not in df.columns:
+            df[c] = 0
+
+    # descartar columnas extra no esperadas
+    return df[expected_cols]
+
+
+# ---------- ciclo de vida ----------
+
 @app.on_event("startup")
-def _load_model() -> None:
-    model_dir = _find_latest_model_dir()
-    # mlflow.pyfunc.load_model trabaja con la carpeta que contiene MLmodel
+def _load_model_on_startup():
+    model_dir = _resolve_model_dir()
     app.state.model_dir = model_dir
     app.state.model = mlpyfunc.load_model(str(model_dir))
 
-    # Intentar obtener la firma (columnas esperadas) desde MLflow
-    # (si no tiene firma, trabajaremos con lo que llegue y completaremos)
-    try:
-        model_meta = app.state.model.metadata
-        signature = model_meta.get_input_schema()
-        # Para pyfunc, podemos intentar:
-        expected_cols = [c.name for c in signature.inputs] if signature and signature.inputs else None
-    except Exception:
-        expected_cols = None
+    # Intentar deducir columnas esperadas
+    columns = _read_expected_columns_from_input_example(model_dir)
+    if not columns:
+        # Intento con el schema del modelo (MLflow 2.x)
+        try:
+            schema = app.state.model.metadata.get_input_schema()
+            columns = [x.name for x in getattr(schema, "inputs", [])] or None
+        except Exception:
+            columns = None
 
-    # Guardamos columnas esperadas; si no hay, None
-    app.state.expected_cols: Optional[List[str]] = expected_cols
-
-    print("✅ Modelo cargado desde:", model_dir.as_posix())
-    if expected_cols:
-        print(f"🧩 Columnas esperadas ({len(expected_cols)}):", expected_cols)
-    else:
-        print("ℹ️ El modelo no tiene firma declarada; se intentará alinear de forma flexible.")
+    app.state.expected_columns = columns
+    print("✅ Modelo cargado desde:", model_dir)
+    if columns:
+        print(f"✅ Columnas esperadas ({len(columns)}): {columns}")
 
 
-# ───────────────────────────────────────────────────────────────────────────────
-# 4) HOME
-# ───────────────────────────────────────────────────────────────────────────────
-@app.get("/", tags=["Home"])
-def home() -> Dict[str, Any]:
+# ---------- endpoints ----------
+
+@app.get("/")
+def home():
     return {
         "message": "API de predicción de Churn lista ✅",
-        "model_path": str(app.state.model_dir),
-        "tracking_uri_actual": mlflow.get_tracking_uri(),
-        "expected_columns": app.state.expected_cols or "No declaradas (se alinean de forma flexible)",
+        "model_path": str(getattr(app.state, "model_dir", "")),
+        "expected_columns": app.state.expected_columns,
     }
 
 
-# ───────────────────────────────────────────────────────────────────────────────
-# 5) PREDICCIÓN FLEXIBLE
-# ───────────────────────────────────────────────────────────────────────────────
-def _align_payload_to_model(df_input: pd.DataFrame, expected_cols: Optional[List[str]]) -> pd.DataFrame:
+@app.get("/health")
+def health():
+    return {"status": "ok"}
+
+
+@app.get("/schema")
+def schema():
+    return {"expected_columns": app.state.expected_columns}
+
+
+@app.post("/predict")
+def predict(payload: Union[Dict[str, Any], List[Dict[str, Any]]] = Body(...)):
     """
-    Alinea el DataFrame de entrada con lo que el modelo espera:
-    - Si expected_cols existe: añade columnas faltantes con 0, reordena.
-    - Convierte columnas *_Yes a boolean (0/1).
-    - Convierte numéricas típicas a float (tenure, MonthlyCharges, TotalCharges).
-    """
-    df = df_input.copy()
-
-    # Normalizamos nombres: sin espacios, tal cual como los guarda tu pipeline (si aplica)
-    # (Si tu pipeline mantiene los nombres exactos, no cambies esto)
-    # df.columns = [c.strip() for c in df.columns]
-
-    # Tipos típicos del Telco (ajusta si usas otros nombres):
-    numeric_like = {"tenure", "MonthlyCharges", "TotalCharges"}
-    bool_like_suffix = "_Yes"  # por convención en one-hot
-
-    for col in list(df.columns):
-        if col in numeric_like:
-            df[col] = df[col].apply(_to_float)
-
-        if col.endswith(bool_like_suffix):
-            # convertimos a {0,1} desde bool/string/num
-            df[col] = df[col].apply(lambda v: int(_truthy_to_bool(v)))
-
-    # Si el modelo declaró columnas esperadas, aseguramos presencia y orden:
-    if expected_cols:
-        # Añadir faltantes con 0
-        for col in expected_cols:
-            if col not in df.columns:
-                # heurística: si es booleana por sufijo _Yes => 0; si no, 0.0
-                default_val = 0 if col.endswith(bool_like_suffix) else 0.0
-                df[col] = default_val
-
-        # Reordenar
-        df = df[[c for c in expected_cols]]
-
-    else:
-        # No hay firma: al menos convertimos *_Yes a 0/1 y rellenamos NaN con 0
-        for col in df.columns:
-            if df[col].dtype == "bool":
-                df[col] = df[col].astype(int)
-        df = df.fillna(0)
-
-    return df
-
-
-@app.post("/predict", tags=["default"])
-def predict(payload: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Recibe un JSON flexible. Ejemplos válidos:
-
-    {
-      "tenure": 12,
-      "MonthlyCharges": 70.5,
-      "TotalCharges": 845.2
-    }
-
-    O con columnas one-hot como "..._Yes": true/1/"yes".
+    Acepta:
+    - Un dict con un solo registro
+      { "tenure": 12, "MonthlyCharges": 70.5, ... }
+    - Una lista de dicts
+      [ {..}, {..} ]
+    Devuelve: {"predictions": [...]}
     """
     try:
-        # Construir DataFrame con una sola fila
-        df_in = pd.DataFrame([payload])
+        # Normalizar a lista de registros
+        if isinstance(payload, dict):
+            records = [payload]
+        elif isinstance(payload, list):
+            if not payload:
+                raise ValueError("La lista de registros está vacía.")
+            records = payload
+        else:
+            raise ValueError("El cuerpo debe ser un objeto JSON o una lista de objetos.")
 
-        # Alinear con lo que espera el modelo
-        df_aligned = _align_payload_to_model(df_in, app.state.expected_cols)
+        df = pd.DataFrame.from_records(records)
+        df = _coerce_booleans_and_numbers(df)
+        df = _align_to_expected_columns(df, app.state.expected_columns)
 
-        # Predicción
-        pred = app.state.model.predict(df_aligned)
+        # Predicción vía pyfunc
+        preds = app.state.model.predict(df)
 
-        # MLflow/pyfunc puede devolver lista/ndarray
-        y = pred[0] if isinstance(pred, (list, np.ndarray, pd.Series)) else pred
+        # Convertir a tipos JSON-friendly
+        if hasattr(preds, "tolist"):
+            preds = preds.tolist()
 
-        # Normalizamos a int si es clasificatorio (0/1)
-        try:
-            y = int(y)
-        except Exception:
-            pass
-
-        return {
-            "ok": True,
-            "churn_prediction": y,
-            "used_columns": app.state.expected_cols or list(df_aligned.columns),
-        }
-
+        return {"predictions": preds}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
-
-
-
-

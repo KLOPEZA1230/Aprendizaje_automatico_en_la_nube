@@ -1,83 +1,121 @@
+# src/models/train_flow.py
 from pathlib import Path
-from prefect import flow, task
-import mlflow
-import mlflow.sklearn  # asegura el flavor
 import pandas as pd
+
+from prefect import flow, task
+
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score
+
+import mlflow
+import mlflow.sklearn
 from mlflow.models import infer_signature
 
-# -------- Rutas absolutas fiables --------
-ROOT = Path(__file__).resolve().parents[2]          # .../Aprendizaje_automatico_en_la_nube
-DATA_PATH = ROOT / "data" / "processed" / "features_telco.csv"
-TRACKING_DIR = ROOT / "logs" / "mlruns"             # misma carpeta que abre tu UI
-
-def _find_churn_col(cols):
-    norm = {c: c.strip().lower() for c in cols}
-    for c, lc in norm.items():
-        if lc == "churn":
-            return c
-    for c, lc in norm.items():
-        if lc in ("churn_1", "churn_yes", "churn_true"):
-            return c
-    raise ValueError("No encuentro la columna de etiqueta 'Churn'.")
 
 @task
-def load_data(path: Path) -> pd.DataFrame:
-    df = pd.read_csv(path)
-    print(f"✅ Dataset loaded: {df.shape}  ({path})")
+def load_data() -> pd.DataFrame:
+    """Carga dataset Telco (usa features si existe)."""
+    candidates = [
+        "data/processed/features_telco.csv",                 # preferido (features)
+        "data/Telco-Customer-Churn.csv",
+        "data/raw/Telco-Customer-Churn.csv",
+        "data/WA_Fn-UseC_-Telco-Customer-Churn.csv",
+        "data/raw/WA_Fn-UseC_-Telco-Customer-Churn.csv",
+    ]
+    found = next((p for p in candidates if Path(p).exists()), None)
+    if not found:
+        raise FileNotFoundError(
+            "No encontré dataset. Coloca alguno en:\n"
+            " - data/processed/features_telco.csv\n"
+            " - data/Telco-Customer-Churn.csv\n"
+            " - data/raw/WA_Fn-UseC_-Telco-Customer-Churn.csv\n"
+        )
+
+    print(f"✅ Usando dataset: {found}")
+    df = pd.read_csv(found)
+
+    # Detectar/normalizar etiqueta
+    y_col = None
+    for k in ["Churn", "churn", "churn_yes", "churn_1", "target", "label"]:
+        if k in df.columns:
+            y_col = k
+            break
+
+    if y_col is None:
+        raise ValueError("No encuentro columna de etiqueta (Churn).")
+
+    if df[y_col].dtype == object:
+        df[y_col] = df[y_col].map({"Yes": 1, "No": 0}).fillna(df[y_col])
+        # si quedan strings, fuerza a int/0-1 si posible
+        try:
+            df[y_col] = df[y_col].astype(int)
+        except Exception:
+            pass
+
+    # Para baseline: si hay muchas categóricas y no es el features, me quedo con numéricas
+    if "processed" not in found:
+        only_num = df.select_dtypes(include="number")
+        if y_col not in only_num.columns:
+            only_num[y_col] = df[y_col].values
+        df = only_num
+
+    print(f"✅ Dataset shape: {df.shape}")
     return df
 
+
 @task
-def train_model(df: pd.DataFrame):
-    y_col = _find_churn_col(df.columns)
-    y = pd.to_numeric(df[y_col], errors="coerce").fillna(0).astype(int)
+def train_and_log(df: pd.DataFrame) -> str:
+    """Entrena, loguea en MLflow y devuelve la ruta del artifact (modelo)."""
+    # separa X/y
+    y_col = next(c for c in df.columns if c.lower().startswith("churn"))
+    y = df[y_col]
     X = df.drop(columns=[y_col])
 
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=0.2, random_state=42, stratify=y
     )
 
-    params = {"n_estimators": 200, "max_depth": 8, "random_state": 42, "n_jobs": -1}
-    model = RandomForestClassifier(**params).fit(X_train, y_train)
+    # MLflow config —> usa ./mlruns (tu tracking actual)
+    mlflow.set_tracking_uri("file:./mlruns")
+    mlflow.set_experiment("telco_churn")
 
-    acc = accuracy_score(y_test, model.predict(X_test))
-    print(f"✅ Model trained with accuracy: {acc:.4f}")
+    with mlflow.start_run(run_name="rf_prefect"):
+        params = {"n_estimators": 200, "max_depth": 8, "random_state": 42, "n_jobs": -1}
+        model = RandomForestClassifier(**params)
+        model.fit(X_train, y_train)
 
-    return model, X_train, acc, params
+        pred = model.predict(X_test)
+        acc = accuracy_score(y_test, pred)
 
-@task
-def log_model_mlflow(model, X_train, acc: float, params: dict):
-    # IMPORTANTÍSIMO: que la UI y el código apunten al MISMO tracking
-    mlflow.set_tracking_uri(TRACKING_DIR.as_uri())      # p.ej. file:///C:/.../logs/mlruns
-    mlflow.set_experiment("telco_churn_prefect")
-    print("🔎 TRACKING_URI   :", mlflow.get_tracking_uri())
-
-    with mlflow.start_run(run_name="rf_pipeline_prefect"):
         mlflow.log_params(params)
-        mlflow.log_metric("accuracy", acc)
+        mlflow.log_metric("accuracy", float(acc))
 
         signature = infer_signature(X_train, model.predict(X_train))
-        input_example = X_train.head(2)
-
-        # 👇 CLAVE: artifact_path="model" (no uses name=)
+        # 🔴 IMPORTANTE: artifact_path="model" para que quede .../artifacts/model/MLmodel
         mlflow.sklearn.log_model(
             sk_model=model,
             artifact_path="model",
             signature=signature,
-            input_example=input_example,
+            input_example=X_train.head(2),
         )
 
-        print("🔎 ARTIFACT_URI   :", mlflow.get_artifact_uri())
-        print("✅ Model logged under artifact path: model/")
+        artifact_uri = mlflow.get_artifact_uri()
+        print("📦 ARTIFACT_URI:", artifact_uri)
+        print("✅ Modelo logueado en:", artifact_uri + "/model")
+
+        return artifact_uri + "/model"
+
 
 @flow(name="TrainingFlow")
 def training_flow():
-    df = load_data(DATA_PATH)
-    model, X_train, acc, params = train_model(df)
-    log_model_mlflow(model, X_train, acc, params)
+    df = load_data()
+    model_artifact = train_and_log(df)
+    print("🔗 MODEL_ARTIFACT:", model_artifact)
+
 
 if __name__ == "__main__":
     training_flow()
+
+
 
